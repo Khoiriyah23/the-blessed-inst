@@ -470,15 +470,22 @@ function Contact() {
               <ContactRow icon={MapPin} label="Location" value="Virtual Online School" />
             </ul>
             <div className="mt-7 flex gap-3">
-              {[
-                { Icon: Instagram, label: "Instagram" },
-                { Icon: () => <TikTokIcon className="h-5 w-5" />, label: "TikTok" },
-                { Icon: Youtube, label: "YouTube" },
-              ].map(({ Icon, label }) => (
-                <a key={label} href="#" aria-label={label} className="grid h-11 w-11 place-items-center rounded-full bg-brand/10 text-brand transition hover:bg-brand hover:text-brand-foreground">
-                  <Icon className="h-5 w-5" />
-                </a>
-              ))}
+          {[
+  { Icon: Instagram, label: "Instagram", href: "https://www.instagram.com/mubarock_0?igsh=MTZoOWtodTF4OXpxNg%3D%3D&utm_source=qr" },
+  { Icon: () => <TikTokIcon className="h-5 w-5" />, label: "TikTok", href: "https://www.tiktok.com/@theblessedinstitute?_r=1&_t=ZS-97jLIYLFFY1" },
+  { Icon: MessageCircle, label: "WhatsApp", href: "https://wa.me/2349026207960?text=Assal%C4%81mu+alaykum.+My+name+is+_________.+I+will+like+to+enrol+for+________." },
+].map(({ Icon, label, href }) => (
+  <a
+    key={label}
+    href={href}
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label={label}
+    className="grid h-11 w-11 place-items-center rounded-full bg-brand/10 text-brand transition hover:bg-brand hover:text-brand-foreground"
+  >
+    <Icon className="h-5 w-5" />
+  </a>
+))}
             </div>
           </div>
           <form 
@@ -595,13 +602,24 @@ function Footer() {
               An online Islamic academy preserving knowledge and nurturing faith — live classes
               in Qur'an, Arabic and Islamic Studies for every age and level.
             </p>
-            <div className="mt-5 flex gap-3">
-              {[Instagram, () => <TikTokIcon className="h-4 w-4" />, Youtube].map((Icon, i) => (
-                <a key={i} href="#" className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white transition hover:bg-brand">
-                  <Icon className="h-4 w-4" />
-                </a>
-              ))}
-            </div>
+  <div className="mt-5 flex gap-3">
+  {[
+    { Icon: Instagram, href: "https://www.instagram.com/mubarock_0?igsh=MTZoOWtodTF4OXpxNg%3D%3D&utm_source=qr", label: "Instagram" },
+    { Icon: () => <TikTokIcon className="h-4 w-4" />, href: "https://www.tiktok.com/@theblessedinstitute?_r=1&_t=ZS-97jLIYLFFY1", label: "TikTok" },
+    { Icon: MessageCircle, href: "https://wa.me/2349026207960?text=Assal%C4%81mu+alaykum.+My+name+is+_________.+I+will+like+to+enrol+for+________.", label: "WhatsApp" },
+  ].map(({ Icon, href, label }, i) => (
+    <a
+      key={i}
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={label}
+      className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white transition hover:bg-brand"
+    >
+      <Icon className="h-4 w-4" />
+    </a>
+  ))}
+</div>
           </div>
           <div className="md:justify-self-end">
             <h4 className="text-sm font-semibold uppercase tracking-wider text-white">Contact Us</h4>
