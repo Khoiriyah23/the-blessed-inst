@@ -311,7 +311,7 @@ function CourseCard({ course, onOpen }: { course: Course; onOpen: () => void }) 
       <div className="relative h-40 overflow-hidden bg-gradient-to-br from-primary via-brand to-[oklch(0.4_0.2_264)]">
         <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4), transparent 60%)" }} />
         <Sparkles className="absolute right-4 top-4 h-5 w-5 text-white/60" />
-        <BookOpen className="absolute bottom-4 left-4 h-10 w-10 text-white/90" strokeWidth={1.6} />
+        {/* <BookOpen className="absolute bottom-4 left-4 h-10 w-10 text-white/90" strokeWidth={1.6} /> */}
       </div>
       <div className="flex flex-1 flex-col p-6">
         <h3 className="text-lg font-bold text-primary">{course.title}</h3>
@@ -471,7 +471,7 @@ function Contact() {
             </ul>
             <div className="mt-7 flex gap-3">
           {[
-  { Icon: Instagram, label: "Instagram", href: "https://www.instagram.com/mubarock_0?igsh=MTZoOWtodTF4OXpxNg%3D%3D&utm_source=qr" },
+  { Icon: Instagram, label: "Instagram", href: "https://www.instagram.com/theblessedinstitute?igsh=MXd4ODdycTN6bWthdQ%3D%3D&utm_source=qr" },
   { Icon: () => <TikTokIcon className="h-5 w-5" />, label: "TikTok", href: "https://www.tiktok.com/@theblessedinstitute?_r=1&_t=ZS-97jLIYLFFY1" },
   { Icon: MessageCircle, label: "WhatsApp", href: "https://wa.me/2349026207960?text=Assal%C4%81mu+alaykum.+My+name+is+_________.+I+will+like+to+enrol+for+________." },
 ].map(({ Icon, label, href }) => (
@@ -604,7 +604,7 @@ function Footer() {
             </p>
   <div className="mt-5 flex gap-3">
   {[
-    { Icon: Instagram, href: "https://www.instagram.com/mubarock_0?igsh=MTZoOWtodTF4OXpxNg%3D%3D&utm_source=qr", label: "Instagram" },
+    { Icon: Instagram, href: "https://www.instagram.com/theblessedinstitute?igsh=MXd4ODdycTN6bWthdQ%3D%3D&utm_source=qr", label: "Instagram" },
     { Icon: () => <TikTokIcon className="h-4 w-4" />, href: "https://www.tiktok.com/@theblessedinstitute?_r=1&_t=ZS-97jLIYLFFY1", label: "TikTok" },
     { Icon: MessageCircle, href: "https://wa.me/2349026207960?text=Assal%C4%81mu+alaykum.+My+name+is+_________.+I+will+like+to+enrol+for+________.", label: "WhatsApp" },
   ].map(({ Icon, href, label }, i) => (
