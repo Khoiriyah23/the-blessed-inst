@@ -17,6 +17,7 @@ type Course = {
   features: string[];
   category: string;
   sort_order: number;
+  image_url: string | null; 
 };
 
 const emptyDraft = (): Course => ({
@@ -29,6 +30,7 @@ const emptyDraft = (): Course => ({
   features: [],
   category: "general",
   sort_order: 0,
+  image_url: null,
 });
 
 const slugify = (s: string) =>
@@ -49,8 +51,7 @@ function CoursesPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("courses")
-      .select("id, title, slug, short_description, description, curriculum, features, category, sort_order")
-      .order("sort_order", { ascending: true });
+.select("id, title, slug, short_description, description, curriculum, features, category, sort_order, image_url")      .order("sort_order", { ascending: true });
     if (error) setError(error.message);
     else setRows((data ?? []) as Course[]);
     setLoading(false);
@@ -84,28 +85,30 @@ function CoursesPage() {
     if (creating) {
       const slug = draft.slug.trim() || slugify(draft.title);
       const { data, error } = await supabase.from("courses").insert({
-        title: draft.title,
-        slug,
-        short_description: draft.short_description,
-        description: draft.description,
-        curriculum: draft.curriculum,
-        features: draft.features,
-        category: draft.category,
-        sort_order: draft.sort_order,
-      }).select().single();
+  title: draft.title,
+  slug,
+  short_description: draft.short_description,
+  description: draft.description,
+  curriculum: draft.curriculum,
+  features: draft.features,
+  category: draft.category,
+  sort_order: draft.sort_order,
+  image_url: draft.image_url || null,
+}).select().single();
       setSaving(false);
       if (error) { alert("Create failed: " + error.message); return; }
       setRows((r) => [...r, data as Course].sort((a, b) => a.sort_order - b.sort_order));
     } else {
       const { error } = await supabase.from("courses").update({
-        title: draft.title,
-        short_description: draft.short_description,
-        description: draft.description,
-        curriculum: draft.curriculum,
-        features: draft.features,
-        category: draft.category,
-        sort_order: draft.sort_order,
-      }).eq("id", draft.id);
+  title: draft.title,
+  short_description: draft.short_description,
+  description: draft.description,
+  curriculum: draft.curriculum,
+  features: draft.features,
+  category: draft.category,
+  sort_order: draft.sort_order,
+  image_url: draft.image_url || null, // add this
+}).eq("id", draft.id);
       setSaving(false);
       if (error) { alert("Save failed: " + error.message); return; }
       setRows((r) => r.map((x) => x.id === draft.id ? draft : x).sort((a, b) => a.sort_order - b.sort_order));
@@ -228,6 +231,21 @@ function DraftEditor({
       <Field label="Short Description">
         <input value={draft.short_description} onChange={(e) => setDraft({ ...draft, short_description: e.target.value })} className="w-full rounded-md border border-input px-3 py-2 text-sm" />
       </Field>
+      <Field label="Course Image URL (paste a direct image link from Pexels or Unsplash)">
+  <input
+    value={draft.image_url || ""}
+    onChange={(e) => setDraft({ ...draft, image_url: e.target.value || null })}
+    placeholder="https://images.pexels.com/photos/..."
+    className="w-full rounded-md border border-input px-3 py-2 text-sm"
+  />
+  {draft.image_url && (
+    <img
+      src={draft.image_url}
+      alt="preview"
+      className="mt-2 h-32 w-full rounded-lg object-cover border border-slate-200"
+    />
+  )}
+</Field>
       <Field label="Description">
         <textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} rows={3} className="w-full rounded-md border border-input px-3 py-2 text-sm" />
       </Field>

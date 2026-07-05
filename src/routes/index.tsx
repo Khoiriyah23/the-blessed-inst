@@ -25,6 +25,7 @@ type Course = {
   features: string[];
   category: "general" | "kids";
   sort_order: number;
+  image_url: string | null;
 };
 
 const coursesQuery = queryOptions({
@@ -308,10 +309,23 @@ function EnrollPrivate() {
 function CourseCard({ course, onOpen }: { course: Course; onOpen: () => void }) {
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
-      <div className="relative h-40 overflow-hidden bg-gradient-to-br from-primary via-brand to-[oklch(0.4_0.2_264)]">
-        <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4), transparent 60%)" }} />
-        <Sparkles className="absolute right-4 top-4 h-5 w-5 text-white/60" />
-        {/* <BookOpen className="absolute bottom-4 left-4 h-10 w-10 text-white/90" strokeWidth={1.6} /> */}
+      <div className="relative h-44 w-full overflow-hidden">
+        {course.image_url ? (
+          <img
+            src={course.image_url}
+            alt={course.title}
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="relative h-full bg-gradient-to-br from-primary via-brand to-[oklch(0.4_0.2_264)]">
+            <div
+              className="absolute inset-0 opacity-30"
+              style={{ backgroundImage: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4), transparent 60%)" }}
+            />
+            <Sparkles className="absolute right-4 top-4 h-5 w-5 text-white/60" />
+            <BookOpen className="absolute bottom-4 left-4 h-10 w-10 text-white/90" strokeWidth={1.6} />
+          </div>
+        )}
       </div>
       <div className="flex flex-1 flex-col p-6">
         <h3 className="text-lg font-bold text-primary">{course.title}</h3>
