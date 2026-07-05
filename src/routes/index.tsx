@@ -182,9 +182,9 @@ function SectionHeading({ eyebrow, title, subtitle, center = true }: { eyebrow?:
 
 function About() {
   const stats = [
-    { value: "100+", label: "Students Enrolled", icon: Users, color: "#2563EB", bg: "rgba(37,99,235,0.12)" },
+    { value: "500+", label: "Students Enrolled", icon: Users, color: "#2563EB", bg: "rgba(37,99,235,0.12)" },
     { value: "10+", label: "Courses Offered", icon: ClipboardList, color: "#16A34A", bg: "rgba(22,163,74,0.12)" },
-    { value: "20+", label: "Qualified Teachers", icon: Users2, color: "#7C3AED", bg: "rgba(124,58,237,0.12)" },
+    { value: "10+", label: "Qualified Teachers", icon: Users2, color: "#7C3AED", bg: "rgba(124,58,237,0.12)" },
     { value: "8+", label: "Countries Reached", icon: Globe, color: "#CA8A04", bg: "rgba(202,138,4,0.14)" },
   ];
   return (
