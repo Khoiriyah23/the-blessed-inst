@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Plus, X, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useState, useRef, useImperativeHandle, forwardRef } from "react";import { Plus, X, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase-external";
 
 export const Route = createFileRoute("/admin/courses")({
@@ -218,6 +217,17 @@ function DraftEditor({
   saving: boolean;
   showSlug?: boolean;
 }) {
+  const curriculumRef = useRef<ListEditorRef>(null);
+  const featuresRef = useRef<ListEditorRef>(null);
+
+  const handleSave = () => {
+    // Flush any pending unsaved items before saving
+    curriculumRef.current?.flush();
+    featuresRef.current?.flush();
+    // Small timeout to let state update propagate before saving
+    setTimeout(() => onSave(), 0);
+  };
+
   return (
     <div className="space-y-4">
       <Field label="Title">
@@ -231,26 +241,54 @@ function DraftEditor({
       <Field label="Short Description">
         <input value={draft.short_description} onChange={(e) => setDraft({ ...draft, short_description: e.target.value })} className="w-full rounded-md border border-input px-3 py-2 text-sm" />
       </Field>
-      <Field label="Course Image URL (paste a direct image link from Pexels or Unsplash)">
-  <input
-    value={draft.image_url || ""}
-    onChange={(e) => setDraft({ ...draft, image_url: e.target.value || null })}
-    placeholder="https://images.pexels.com/photos/..."
-    className="w-full rounded-md border border-input px-3 py-2 text-sm"
-  />
-  {draft.image_url && (
-    <img
-      src={draft.image_url}
-      alt="preview"
-      className="mt-2 h-32 w-full rounded-lg object-cover border border-slate-200"
-    />
-  )}
-</Field>
+      <Field label="Course Image">
+        <div className="space-y-2">
+          {draft.image_url && (
+            <img src={draft.image_url} alt="preview" className="h-32 w-full rounded-lg object-cover border border-slate-200" />
+          )}
+          <div className="flex gap-2">
+            <input
+              value={draft.image_url || ""}
+              onChange={(e) => setDraft({ ...draft, image_url: e.target.value || null })}
+              placeholder="Paste image URL or upload below..."
+              className="flex-1 rounded-md border border-input px-3 py-2 text-sm"
+            />
+          </div>
+          <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-500 hover:bg-slate-50">
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const ext = file.name.split('.').pop();
+                const path = `${Date.now()}.${ext}`;
+                const { error } = await supabase.storage.from('course-images').upload(path, file, { upsert: true });
+                if (error) { alert('Upload failed: ' + error.message); return; }
+                const { data } = supabase.storage.from('course-images').getPublicUrl(path);
+                setDraft({ ...draft, image_url: data.publicUrl });
+              }}
+            />
+            📁 Upload from device
+          </label>
+        </div>
+      </Field>
       <Field label="Description">
         <textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} rows={3} className="w-full rounded-md border border-input px-3 py-2 text-sm" />
       </Field>
-      <ListEditor label="Curriculum" items={draft.curriculum} onChange={(v) => setDraft({ ...draft, curriculum: v })} />
-      <ListEditor label="Features" items={draft.features} onChange={(v) => setDraft({ ...draft, features: v })} />
+      <ListEditor
+        ref={curriculumRef}
+        label="Curriculum"
+        items={draft.curriculum}
+        onChange={(v) => setDraft({ ...draft, curriculum: v })}
+      />
+      <ListEditor
+        ref={featuresRef}
+        label="Features"
+        items={draft.features}
+        onChange={(v) => setDraft({ ...draft, features: v })}
+      />
       <div className="grid grid-cols-2 gap-3">
         <Field label="Category">
           <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} className="w-full rounded-md border border-input px-3 py-2 text-sm bg-white">
@@ -264,7 +302,7 @@ function DraftEditor({
       </div>
       <div className="flex gap-2 justify-end pt-2 border-t border-slate-100">
         <button onClick={onCancel} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-50">Cancel</button>
-        <button onClick={onSave} disabled={saving} className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground hover:bg-brand-dark disabled:opacity-60">
+        <button onClick={handleSave} disabled={saving} className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground hover:bg-brand-dark disabled:opacity-60">
           {saving ? "Saving…" : "Save"}
         </button>
       </div>
@@ -281,8 +319,28 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function ListEditor({ label, items, onChange }: { label: string; items: string[]; onChange: (v: string[]) => void }) {
+
+type ListEditorRef = { flush: () => string[] };
+
+const ListEditor = forwardRef<ListEditorRef, {
+  label: string;
+  items: string[];
+  onChange: (v: string[]) => void;
+}>(({ label, items, onChange }, ref) => {
   const [newItem, setNewItem] = useState("");
+
+  useImperativeHandle(ref, () => ({
+    flush: () => {
+      if (newItem.trim()) {
+        const updated = [...items, newItem.trim()];
+        onChange(updated);
+        setNewItem("");
+        return updated;
+      }
+      return items;
+    },
+  }));
+
   return (
     <Field label={label}>
       <div className="space-y-2">
@@ -293,7 +351,10 @@ function ListEditor({ label, items, onChange }: { label: string; items: string[]
               onChange={(e) => onChange(items.map((x, idx) => idx === i ? e.target.value : x))}
               className="flex-1 rounded-md border border-input px-3 py-1.5 text-sm"
             />
-            <button onClick={() => onChange(items.filter((_, idx) => idx !== i))} className="rounded-md border border-slate-200 px-2 py-1 text-slate-500 hover:bg-red-50 hover:text-red-600">
+            <button
+              onClick={() => onChange(items.filter((_, idx) => idx !== i))}
+              className="rounded-md border border-slate-200 px-2 py-1 text-slate-500 hover:bg-red-50 hover:text-red-600"
+            >
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -304,16 +365,29 @@ function ListEditor({ label, items, onChange }: { label: string; items: string[]
             onChange={(e) => setNewItem(e.target.value)}
             placeholder={`Add ${label.toLowerCase()} item…`}
             className="flex-1 rounded-md border border-dashed border-slate-300 px-3 py-1.5 text-sm"
-            onKeyDown={(e) => { if (e.key === "Enter" && newItem.trim()) { onChange([...items, newItem.trim()]); setNewItem(""); }}}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newItem.trim()) {
+                onChange([...items, newItem.trim()]);
+                setNewItem("");
+              }
+            }}
           />
           <button
-            onClick={() => { if (newItem.trim()) { onChange([...items, newItem.trim()]); setNewItem(""); }}}
+            onClick={() => {
+              if (newItem.trim()) {
+                onChange([...items, newItem.trim()]);
+                setNewItem("");
+              }
+            }}
             className="inline-flex items-center gap-1 rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground hover:bg-brand-dark"
           >
             <Plus className="h-3.5 w-3.5" /> Add
           </button>
         </div>
+        <p className="text-xs text-amber-600">
+          ⚠️ Press Enter or click Add to confirm each item before saving.
+        </p>
       </div>
     </Field>
   );
-}
+});
