@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { BookOpen, Check, ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/lib/supabase-external";
+import logo from "@/assets/TBI full logo blue.png"
 
 export const Route = createFileRoute("/enroll")({
   head: () => ({
@@ -130,18 +131,13 @@ function EnrollPage() {
   return (
     <div className="min-h-screen bg-secondary/30">
       <header className="border-b border-border bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-brand text-brand-foreground shadow-sm">
-              <BookOpen className="h-5 w-5" strokeWidth={2.4} />
-            </div>
-            <span className="font-display text-base font-bold leading-tight text-primary">
-              The Blessed Institute
-            </span>
-          </Link>
-          <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-primary">← Back to home</Link>
-        </div>
-      </header>
+  <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+    <Link to="/" className="flex items-center gap-2.5">
+      <img src={logo} alt="The Blessed Institute" className="h-10 w-auto" />
+    </Link>
+    <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-primary">← Back to home</Link>
+  </div>
+</header>
 
       <main className="mx-auto max-w-6xl px-4 py-10 md:py-14">
         <div className="grid gap-8 md:grid-cols-[1fr_1.4fr] md:gap-10">
