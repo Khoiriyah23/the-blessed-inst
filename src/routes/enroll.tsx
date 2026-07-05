@@ -418,17 +418,29 @@ function Step4({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="text-sm font-medium text-foreground">Number of Students</label>
-          <input
-            type="number"
-            min={1}
-            value={form.students}
-            onChange={(e) => setForm((f) => ({ ...f, students: Math.max(1, Number(e.target.value) || 1) }))}
-            className="mt-1.5 w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-          />
-        </div>
-      </div>
+  <div>
+    <label className="text-sm font-medium text-foreground">Number of Students</label>
+    <div className="mt-1.5 flex items-center gap-4">
+      <button
+        type="button"
+        onClick={() => setForm((f) => ({ ...f, students: Math.max(1, f.students - 1) }))}
+        className="h-10 w-10 rounded-full border border-input bg-white text-xl font-semibold text-primary hover:bg-slate-50 transition flex items-center justify-center"
+      >
+        −
+      </button>
+      <span className="text-lg font-semibold text-primary w-6 text-center">
+        {form.students}
+      </span>
+      <button
+        type="button"
+        onClick={() => setForm((f) => ({ ...f, students: f.students + 1 }))}
+        className="h-10 w-10 rounded-full border border-input bg-white text-xl font-semibold text-primary hover:bg-slate-50 transition flex items-center justify-center"
+      >
+        +
+      </button>
+    </div>
+  </div>
+</div>
       <div className="mt-4">
         <label className="text-sm font-medium text-foreground">Special Requirements</label>
         <textarea
