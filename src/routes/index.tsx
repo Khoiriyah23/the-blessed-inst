@@ -478,7 +478,7 @@ function Contact() {
           <div className="rounded-3xl border border-border bg-white p-8 shadow-sm">
             <h3 className="text-xl font-bold text-primary">Get In Touch</h3>
             <ul className="mt-6 space-y-4">
-              <ContactRow icon={Mail} label="Email" value="theblessedinstitute@gmail.com" />
+              <ContactRow icon={Mail} label="Email" value="admin@theblessedinstitute.com" />
               <ContactRow icon={Phone} label="Phone" value="+234 902 620 7960" />
               <ContactRow icon={MessageCircle} label="WhatsApp" value="+234 902 620 7960" />
               <ContactRow icon={MapPin} label="Location" value="Virtual Online School" />
@@ -638,7 +638,7 @@ function Footer() {
           <div className="md:justify-self-end">
             <h4 className="text-sm font-semibold uppercase tracking-wider text-white">Contact Us</h4>
             <ul className="mt-4 space-y-2.5 text-sm">
-              <li className="flex items-center gap-2.5"><Mail className="h-4 w-4 text-brand" /> theblessedinstitute@gmail.com</li>
+              <li className="flex items-center gap-2.5"><Mail className="h-4 w-4 text-brand" /> admin@theblessedinstitute.com</li>
               <li className="flex items-center gap-2.5"><Phone className="h-4 w-4 text-brand" /> +234 902 620 7960</li>
               <li className="flex items-center gap-2.5"><MapPin className="h-4 w-4 text-brand" /> Virtual Online School</li>
             </ul>

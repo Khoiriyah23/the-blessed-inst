@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { BookOpen, Check, ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Check, ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/lib/supabase-external";
-import logo from "@/assets/TBI full logo blue.png"
+import logo from "@/assets/TBI full logo blue.png";
 
 export const Route = createFileRoute("/enroll")({
   head: () => ({
@@ -14,28 +14,21 @@ export const Route = createFileRoute("/enroll")({
   component: EnrollPage,
 });
 
-const GENERAL_COURSES = [
-  "Quran from Scratch", "Beginner Arabic", "Fiqh An-Nisaa", "Idaadi Program",
-  "Thanawiy Program", "Islamic Studies", "Quran memorization", "Tejweed", "Advanced Arabic",
-];
-const KIDS_COURSES = [
-  "Arabic reading (Kids)", "Arabic writing (Kids)", "Quran memorization (Kids)",
-  "Adab - Islamic morals (Kids)", "Hadith (Kids)", "Seerah - Story of the prophets (Kids)",
-];
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-
-type SessionOption = "2 or 3 Sessions" | "4 Sessions" | "5 Sessions";
-
-const PRICING: Record<SessionOption, [number, number, number]> = {
-  "2 or 3 Sessions": [40000, 60000, 80000],
-  "4 Sessions": [50000, 75000, 100000],
-  "5 Sessions": [60000, 90000, 120000],
+type Course = {
+  id: string;
+  slug: string;
+  title: string;
+  short_description: string;
+  category: "general" | "kids";
+  sort_order: number;
+  fee: number | null;
+  fee_type: "monthly" | "one_time" | null;
+  early_bird_fee: number | null;
+  early_bird_deadline: string | null;
+  fee_label: string | null;
 };
 
-function calcPrice(courseCount: number, sessions: SessionOption): number {
-  const idx = courseCount <= 1 ? 0 : courseCount === 2 ? 1 : 2;
-  return PRICING[sessions][idx];
-}
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 type FormState = {
   who: "myself" | "someone_else" | "";
@@ -44,8 +37,6 @@ type FormState = {
   phone: string;
   courses: string[];
   level: "" | "Beginner" | "Intermediate" | "Advanced";
-  region: string;
-  sessions: SessionOption;
   availability: Record<string, { checked: boolean; time: string }>;
   students: number;
   requirements: string;
@@ -58,20 +49,57 @@ const initialState: FormState = {
   phone: "",
   courses: [],
   level: "",
-  region: "Africa (NGN)",
-  sessions: "2 or 3 Sessions",
   availability: Object.fromEntries(DAYS.map((d) => [d, { checked: false, time: "" }])),
   students: 1,
   requirements: "",
 };
 
+function getEffectiveFee(course: Course): number {
+  if (
+    course.early_bird_fee &&
+    course.early_bird_deadline &&
+    new Date(course.early_bird_deadline) >= new Date()
+  ) {
+    return course.early_bird_fee;
+  }
+  return course.fee ?? 0;
+}
+
 function EnrollPage() {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormState>(initialState);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(true);
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      const { data } = await supabase
+        .from("courses")
+        .select("id, slug, title, short_description, category, sort_order, fee, fee_type, early_bird_fee, early_bird_deadline, fee_label")
+        .order("sort_order", { ascending: true });
+      setAllCourses((data ?? []) as Course[]);
+      setLoadingCourses(false);
+    };
+    fetchCourses();
+  }, []);
+
+  const generalCourses = allCourses.filter((c) => c.category === "general");
+  const kidsCourses = allCourses.filter((c) => c.category === "kids");
+
+  const selectedCourseObjects = useMemo(
+    () => allCourses.filter((c) => form.courses.includes(c.title)),
+    [allCourses, form.courses]
+  );
+
+  const totalPrice = useMemo(
+    () => selectedCourseObjects.reduce((sum, c) => sum + getEffectiveFee(c), 0),
+    [selectedCourseObjects]
+  );
 
   const totalSteps = 5;
-  const price = useMemo(() => calcPrice(Math.max(form.courses.length, 1), form.sessions), [form.courses.length, form.sessions]);
 
   const canProceed = () => {
     if (step === 1) return form.who && form.fullName.trim() && /\S+@\S+\.\S+/.test(form.email) && form.phone.trim();
@@ -84,16 +112,19 @@ function EnrollPage() {
     return true;
   };
 
-  const toggleCourse = (c: string) => {
-    setForm((f) => ({ ...f, courses: f.courses.includes(c) ? f.courses.filter((x) => x !== c) : [...f.courses, c] }));
+  const toggleCourse = (title: string) => {
+    setForm((f) => ({
+      ...f,
+      courses: f.courses.includes(title)
+        ? f.courses.filter((x) => x !== title)
+        : [...f.courses, title],
+    }));
   };
-
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const submit = async () => {
     setSubmitting(true);
     setSubmitError(null);
+
     const availability = DAYS
       .filter((d) => form.availability[d].checked)
       .map((d) => ({ day: d, time: form.availability[d].time }));
@@ -105,8 +136,8 @@ function EnrollPage() {
       phone: form.phone,
       selected_courses: form.courses,
       knowledge_level: form.level,
-      sessions_per_week: form.sessions,
-      monthly_price: price,
+      sessions_per_week: null,
+      monthly_price: totalPrice,
       availability,
       number_of_students: form.students,
       special_requirements: form.requirements || null,
@@ -123,7 +154,12 @@ function EnrollPage() {
     setSubmitting(false);
 
     const days = availability.map((a) => `${a.day}: ${a.time}`).join("\n");
-    const msg = `New Registration — The Blessed Institute\n\n👤 REGISTRANT\n\nRegistering for: ${form.who === "myself" ? "Myself" : "Someone Else"}\nFull Name: ${form.fullName}\nEmail: ${form.email}\nPhone: ${form.phone}\n\n📚 CLASS PREFERENCES\n\nCourses: ${form.courses.join(", ")}\nKnowledge Level: ${form.level}\n\n💰 PRICING\n\nRegion: Africa (NGN)\nSessions/Week: ${form.sessions}\nMonthly Payment: ₦${price.toLocaleString()}\n\n📅 AVAILABILITY\n\n${days || "—"}\n\n👥 Students: ${form.students}\n📝 Special Requirements: ${form.requirements || "None"}`;
+    const courseBreakdown = selectedCourseObjects
+      .map((c) => `${c.title}: ₦${getEffectiveFee(c).toLocaleString()} (${c.fee_type === "one_time" ? "one-time" : "monthly"})`)
+      .join("\n");
+
+    const msg = `New Registration — The Blessed Institute\n\n👤 REGISTRANT\n\nRegistering for: ${form.who === "myself" ? "Myself" : "Someone Else"}\nFull Name: ${form.fullName}\nEmail: ${form.email}\nPhone: ${form.phone}\n\n📚 CLASS PREFERENCES\n\nCourses:\n${courseBreakdown}\nKnowledge Level: ${form.level}\n\n💰 PRICING\n\nTotal: ₦${totalPrice.toLocaleString()}\n\n📅 AVAILABILITY\n\n${days || "—"}\n\n👥 Students: ${form.students}\n📝 Special Requirements: ${form.requirements || "None"}`;
+
     const url = `https://wa.me/2349026207960?text=${encodeURIComponent(msg)}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
@@ -131,17 +167,16 @@ function EnrollPage() {
   return (
     <div className="min-h-screen bg-secondary/30">
       <header className="border-b border-border bg-white">
-  <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-    <Link to="/" className="flex items-center gap-2.5">
-      <img src={logo} alt="The Blessed Institute" className="h-10 w-auto" />
-    </Link>
-    <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-primary">← Back to home</Link>
-  </div>
-</header>
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+          <Link to="/" className="flex items-center gap-2.5">
+            <img src={logo} alt="The Blessed Institute" className="h-10 w-auto" />
+          </Link>
+          <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-primary">← Back to home</Link>
+        </div>
+      </header>
 
       <main className="mx-auto max-w-6xl px-4 py-10 md:py-14">
         <div className="grid gap-8 md:grid-cols-[1fr_1.4fr] md:gap-10">
-          {/* Left summary */}
           <aside className="md:sticky md:top-8 md:h-fit">
             <div className="rounded-3xl bg-primary p-8 text-white shadow-lg">
               <h2 className="font-display text-2xl font-bold md:text-3xl">Secure Your Private Spot</h2>
@@ -162,7 +197,6 @@ function EnrollPage() {
             </div>
           </aside>
 
-          {/* Right form */}
           <section className="rounded-3xl border border-border bg-white p-6 shadow-sm md:p-9">
             {submitted ? (
               <div className="py-10 text-center">
@@ -180,12 +214,25 @@ function EnrollPage() {
             ) : (
               <>
                 <StepIndicator step={step} total={totalSteps} />
-
                 {step === 1 && <Step1 form={form} setForm={setForm} />}
-                {step === 2 && <Step2 form={form} setForm={setForm} toggleCourse={toggleCourse} />}
-                {step === 3 && <Step3 form={form} setForm={setForm} price={price} />}
+                {step === 2 && (
+                  <Step2
+                    form={form}
+                    generalCourses={generalCourses}
+                    kidsCourses={kidsCourses}
+                    loading={loadingCourses}
+                    setForm={setForm}
+                    toggleCourse={toggleCourse}
+                  />
+                )}
+                {step === 3 && (
+                  <Step3
+                    selectedCourses={selectedCourseObjects}
+                    totalPrice={totalPrice}
+                  />
+                )}
                 {step === 4 && <Step4 form={form} setForm={setForm} />}
-                {step === 5 && <Step5 form={form} price={price} />}
+                {step === 5 && <Step5 form={form} selectedCourses={selectedCourseObjects} totalPrice={totalPrice} />}
 
                 <div className="mt-8 flex items-center justify-between gap-3 border-t border-border pt-6">
                   <button
@@ -239,7 +286,9 @@ function StepIndicator({ step, total }: { step: number; total: number }) {
   );
 }
 
-function TextField({ label, type = "text", value, onChange, placeholder }: { label: string; type?: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+function TextField({ label, type = "text", value, onChange, placeholder }: {
+  label: string; type?: string; value: string; onChange: (v: string) => void; placeholder?: string;
+}) {
   return (
     <div>
       <label className="text-sm font-medium text-foreground">{label}</label>
@@ -299,25 +348,46 @@ function Pill({ label, active, onClick }: { label: string; active: boolean; onCl
   );
 }
 
-function Step2({ form, setForm, toggleCourse }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>>; toggleCourse: (c: string) => void }) {
+function Step2({ form, setForm, generalCourses, kidsCourses, loading, toggleCourse }: {
+  form: FormState;
+  setForm: React.Dispatch<React.SetStateAction<FormState>>;
+  generalCourses: Course[];
+  kidsCourses: Course[];
+  loading: boolean;
+  toggleCourse: (title: string) => void;
+}) {
+  if (loading) {
+    return (
+      <div className="py-10 text-center text-sm text-muted-foreground">Loading courses…</div>
+    );
+  }
+
   return (
     <div>
       <h3 className="text-xl font-bold text-primary">Class Preferences</h3>
       <p className="mt-1 text-sm text-muted-foreground">Select one or more courses.</p>
 
-      <div className="mt-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-brand">General Courses</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {GENERAL_COURSES.map((c) => <Pill key={c} label={c} active={form.courses.includes(c)} onClick={() => toggleCourse(c)} />)}
+      {generalCourses.length > 0 && (
+        <div className="mt-6">
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand">General Courses</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {generalCourses.map((c) => (
+              <Pill key={c.id} label={c.title} active={form.courses.includes(c.title)} onClick={() => toggleCourse(c.title)} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="mt-7">
-        <p className="text-xs font-semibold uppercase tracking-wider text-success">Kids Courses — Recommended for Children</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {KIDS_COURSES.map((c) => <Pill key={c} label={c} active={form.courses.includes(c)} onClick={() => toggleCourse(c)} />)}
+      {kidsCourses.length > 0 && (
+        <div className="mt-7">
+          <p className="text-xs font-semibold uppercase tracking-wider text-success">Kids Courses — Recommended for Children</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {kidsCourses.map((c) => (
+              <Pill key={c.id} label={c.title} active={form.courses.includes(c.title)} onClick={() => toggleCourse(c.title)} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="mt-7">
         <label className="text-sm font-medium text-foreground">Knowledge Level</label>
@@ -336,40 +406,60 @@ function Step2({ form, setForm, toggleCourse }: { form: FormState; setForm: Reac
   );
 }
 
-function Step3({ form, setForm, price }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>>; price: number }) {
+function Step3({ selectedCourses, totalPrice }: {
+  selectedCourses: Course[];
+  totalPrice: number;
+}) {
+  const today = new Date();
+
   return (
     <div>
       <h3 className="text-xl font-bold text-primary">Pricing & Plan</h3>
-      <div className="mt-5 space-y-4">
-        <div>
-          <label className="text-sm font-medium text-foreground">Region</label>
-          <input
-            readOnly
-            value={form.region}
-            className="mt-1.5 w-full rounded-xl border border-input bg-secondary/50 px-4 py-2.5 text-sm text-muted-foreground"
-          />
-        </div>
-        <div>
-          <label className="text-sm font-medium text-foreground">Sessions per Week</label>
-          <select
-            value={form.sessions}
-            onChange={(e) => setForm((f) => ({ ...f, sessions: e.target.value as SessionOption }))}
-            className="mt-1.5 w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
-          >
-            <option>2 or 3 Sessions</option>
-            <option>4 Sessions</option>
-            <option>5 Sessions</option>
-          </select>
-        </div>
+      <p className="mt-1 text-sm text-muted-foreground">Fee breakdown for your selected courses.</p>
+
+      <div className="mt-6 space-y-3">
+        {selectedCourses.map((c) => {
+          const hasEarlyBird = c.early_bird_fee && c.early_bird_deadline && new Date(c.early_bird_deadline) >= today;
+          const effectiveFee = getEffectiveFee(c);
+          return (
+            <div key={c.id} className="rounded-xl border border-border bg-secondary/30 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-primary">{c.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {c.fee_label ?? (c.fee_type === "one_time" ? "One-time payment" : "Per month")}
+                  </p>
+                </div>
+                <div className="text-right">
+                  {hasEarlyBird ? (
+                    <>
+                      <p className="text-xs line-through text-muted-foreground">₦{c.fee!.toLocaleString()}</p>
+                      <p className="text-base font-bold text-brand">₦{c.early_bird_fee!.toLocaleString()}</p>
+                      <p className="text-[10px] text-amber-600 font-medium">
+                        Early bird — ends {new Date(c.early_bird_deadline!).toLocaleDateString()}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-base font-bold text-primary">
+                      {c.fee ? `₦${effectiveFee.toLocaleString()}` : "Contact us"}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      <div className="mt-7 rounded-2xl border-2 border-brand bg-brand/5 p-6 text-center">
-        <p className="text-xs font-semibold uppercase tracking-wider text-brand">Monthly Payment</p>
-        <p className="mt-2 font-display text-4xl font-extrabold text-primary">₦{price.toLocaleString()}</p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          {form.courses.length || 0} course{form.courses.length === 1 ? "" : "s"} · {form.sessions}
-        </p>
-      </div>
+      {selectedCourses.length > 0 && (
+        <div className="mt-5 rounded-2xl border-2 border-brand bg-brand/5 p-6 text-center">
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand">Total Payment</p>
+          <p className="mt-2 font-display text-4xl font-extrabold text-primary">₦{totalPrice.toLocaleString()}</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {selectedCourses.length} course{selectedCourses.length === 1 ? "" : "s"} selected
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -381,6 +471,7 @@ function Step4({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
       availability: { ...f.availability, [day]: { ...f.availability[day], ...patch } },
     }));
   };
+
   return (
     <div>
       <h3 className="text-xl font-bold text-primary">Select Your Availability</h3>
@@ -414,29 +505,28 @@ function Step4({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
-  <div>
-    <label className="text-sm font-medium text-foreground">Number of Students</label>
-    <div className="mt-1.5 flex items-center gap-4">
-      <button
-        type="button"
-        onClick={() => setForm((f) => ({ ...f, students: Math.max(1, f.students - 1) }))}
-        className="h-10 w-10 rounded-full border border-input bg-white text-xl font-semibold text-primary hover:bg-slate-50 transition flex items-center justify-center"
-      >
-        −
-      </button>
-      <span className="text-lg font-semibold text-primary w-6 text-center">
-        {form.students}
-      </span>
-      <button
-        type="button"
-        onClick={() => setForm((f) => ({ ...f, students: f.students + 1 }))}
-        className="h-10 w-10 rounded-full border border-input bg-white text-xl font-semibold text-primary hover:bg-slate-50 transition flex items-center justify-center"
-      >
-        +
-      </button>
-    </div>
-  </div>
-</div>
+        <div>
+          <label className="text-sm font-medium text-foreground">Number of Students</label>
+          <div className="mt-1.5 flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, students: Math.max(1, f.students - 1) }))}
+              className="h-10 w-10 rounded-full border border-input bg-white text-xl font-semibold text-primary hover:bg-slate-50 transition flex items-center justify-center"
+            >
+              −
+            </button>
+            <span className="text-lg font-semibold text-primary w-6 text-center">{form.students}</span>
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, students: f.students + 1 }))}
+              className="h-10 w-10 rounded-full border border-input bg-white text-xl font-semibold text-primary hover:bg-slate-50 transition flex items-center justify-center"
+            >
+              +
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div className="mt-4">
         <label className="text-sm font-medium text-foreground">Special Requirements</label>
         <textarea
@@ -451,7 +541,11 @@ function Step4({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
   );
 }
 
-function Step5({ form, price }: { form: FormState; price: number }) {
+function Step5({ form, selectedCourses, totalPrice }: {
+  form: FormState;
+  selectedCourses: Course[];
+  totalPrice: number;
+}) {
   const days = DAYS.filter((d) => form.availability[d].checked);
   return (
     <div>
@@ -465,15 +559,23 @@ function Step5({ form, price }: { form: FormState; price: number }) {
           <Row k="Email" v={form.email} />
           <Row k="Phone" v={form.phone} />
         </ReviewBlock>
+
         <ReviewBlock title="Class Preferences">
           <Row k="Courses" v={form.courses.join(", ") || "—"} />
           <Row k="Level" v={form.level || "—"} />
         </ReviewBlock>
+
         <ReviewBlock title="Pricing">
-          <Row k="Region" v={form.region} />
-          <Row k="Sessions / Week" v={form.sessions} />
-          <Row k="Monthly Payment" v={`₦${price.toLocaleString()}`} highlight />
+          {selectedCourses.map((c) => (
+            <Row
+              key={c.id}
+              k={c.title}
+              v={`₦${getEffectiveFee(c).toLocaleString()} (${c.fee_type === "one_time" ? "one-time" : "monthly"})`}
+            />
+          ))}
+          <Row k="Total" v={`₦${totalPrice.toLocaleString()}`} highlight />
         </ReviewBlock>
+
         <ReviewBlock title="Availability">
           {days.length === 0 ? (
             <p className="text-sm text-muted-foreground">No days selected</p>
