@@ -688,10 +688,29 @@ function PaymentStep({ totalPrice, selectedCourses }: { totalPrice: number; sele
           ))}
         </div>
       )}
-
-      <div className="mt-6 rounded-2xl border border-border bg-secondary/30 p-5 text-left">
-        {/* ...unchanged bank details block... */}
-      </div>
+<div className="mt-6 rounded-2xl border border-border bg-secondary/30 p-5 text-left">
+  <div className="border-b border-border pb-3">
+    <p className="text-xs font-medium text-muted-foreground">Account Name</p>
+    <p className="mt-1 text-sm font-semibold text-primary">Agboola Mubarak</p>
+  </div>
+  <div className="flex items-center justify-between border-b border-border py-3">
+    <div>
+      <p className="text-xs font-medium text-muted-foreground">Account Number</p>
+      <p className="mt-1 text-sm font-semibold text-primary">{accountNumber}</p>
+    </div>
+    <button
+      onClick={copyAccountNumber}
+      className="rounded-lg bg-brand/10 p-2 text-brand hover:bg-brand/20"
+      aria-label="Copy account number"
+    >
+      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+    </button>
+  </div>
+  <div className="pt-3">
+    <p className="text-xs font-medium text-muted-foreground">Bank</p>
+    <p className="mt-1 text-sm font-semibold text-primary">OPay</p>
+  </div>
+</div>
 
       <p className="mt-6 text-sm text-muted-foreground">After payment, send us your payment proof.</p>
 
