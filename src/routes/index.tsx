@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import {
+import { useState, useEffect } from "react";import {
   BookOpen, Shield, Zap, MessageCircle, User, ClipboardList,
   Calendar, Heart, GraduationCap, Mail, Phone, MapPin,
   Instagram, Youtube, Menu, X, Quote, Check, Sparkles,
@@ -520,19 +519,26 @@ function CourseModal({ course, onClose }: { course: Course | null; onClose: () =
 }
 
 function Testimonials() {
-  const items = [
-    { q: "I'm glad he's doing well. He's always eager every weekend for the Arabic class.", a: "Parent, USA" },
-    { q: "Alhamdulillah! The classes have been awesome! What they have achieved in 3 weeks is amazing. Alhamdulillah we are so pleased.", a: "Parent, Canada" },
-    { q: "Attending the class has truly been a beautiful journey, Alhamdulillah. The lessons are impactful, the teachers are dedicated and intentional.", a: "Haneefah A., Nigeria" },
-    { q: "Good outcome has been recorded. The teaching techniques have been effective.", a: "AbdulMuiz A., Nigeria" },
-  ];
+  const [items, setItems] = useState<{ id: string; q: string; a: string }[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from("testimonials")
+        .select("id, quote, author")
+        .order("sort_order", { ascending: true });
+      setItems((data ?? []).map((t) => ({ id: t.id, q: t.quote, a: t.author })));
+    };
+    load();
+  }, []);
+
   return (
     <section id="testimonials" className="bg-secondary/40 py-20 md:py-24">
       <div className="mx-auto max-w-6xl px-4">
         <SectionHeading eyebrow="Testimonials" title="What Our Students & Parents Say" />
         <div className="mt-12 -mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 pb-4 [scrollbar-width:thin]">
-          {items.map((t, i) => (
-            <figure key={i} className="flex w-[88%] shrink-0 snap-center flex-col rounded-3xl border border-border bg-white p-7 shadow-sm sm:w-[60%] md:w-[44%] lg:w-[32%]">
+          {items.map((t) => (
+            <figure key={t.id} className="flex w-[88%] shrink-0 snap-center flex-col rounded-3xl border border-border bg-white p-7 shadow-sm sm:w-[60%] md:w-[44%] lg:w-[32%]">
               <Quote className="h-9 w-9 text-brand/30" strokeWidth={2.5} />
               <blockquote className="mt-4 flex-1 text-base leading-relaxed text-foreground">"{t.q}"</blockquote>
               <figcaption className="mt-5 text-sm font-semibold text-brand">— {t.a}</figcaption>

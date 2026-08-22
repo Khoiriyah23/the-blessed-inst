@@ -1,7 +1,6 @@
 import { createFileRoute, Outlet, Link, useRouterState, useNavigate, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { BookOpen, Users, DollarSign, GraduationCap, LogOut } from "lucide-react";
-import { supabase } from "@/lib/supabase-external";
+import { BookOpen, Users, DollarSign, GraduationCap, LogOut, MessageSquareQuote } from "lucide-react";import { supabase } from "@/lib/supabase-external";
 import logo from '@/assets/TBI full logo blue.png'
 
 export const Route = createFileRoute("/admin")({
@@ -50,11 +49,12 @@ function AdminLayout() {
     navigate({ to: "/admin/login" });
   };
 
-  const navItems = [
-    { to: "/admin/registrations", label: "Registrations", icon: Users },
-    { to: "/admin/pricing", label: "Pricing", icon: DollarSign },
-    { to: "/admin/courses", label: "Courses", icon: GraduationCap },
-  ];
+ const navItems = [
+  { to: "/admin/registrations", label: "Registrations", icon: Users },
+  { to: "/admin/pricing", label: "Pricing", icon: DollarSign },
+  { to: "/admin/courses", label: "Courses", icon: GraduationCap },
+  { to: "/admin/testimonials", label: "Testimonials", icon: MessageSquareQuote },
+];
 
   return (
     <div className="min-h-screen flex bg-slate-50">
