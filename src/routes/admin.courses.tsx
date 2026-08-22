@@ -16,7 +16,13 @@ type Course = {
   features: string[];
   category: string;
   sort_order: number;
-  image_url: string | null; 
+  image_url: string | null;
+  fee: number | null;           
+  fee_type: string;           
+  early_bird_fee: number | null; 
+  early_bird_deadline: string | null; 
+  fee_label: string | null;   
+  capacity: number | null;
 };
 
 const emptyDraft = (): Course => ({
@@ -30,6 +36,12 @@ const emptyDraft = (): Course => ({
   category: "general",
   sort_order: 0,
   image_url: null,
+  fee: null,          
+  fee_type: "monthly",
+  early_bird_fee: null,
+  early_bird_deadline: null,
+  fee_label: null,    
+  capacity: null,
 });
 
 const slugify = (s: string) =>
@@ -50,8 +62,8 @@ function CoursesPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("courses")
-.select("id, title, slug, short_description, description, curriculum, features, category, sort_order, image_url")      .order("sort_order", { ascending: true });
-    if (error) setError(error.message);
+      .select("id, title, slug, short_description, description, curriculum, features, category, sort_order, image_url, fee, fee_type, early_bird_fee, early_bird_deadline, fee_label, capacity")  
+  if (error) setError(error.message);
     else setRows((data ?? []) as Course[]);
     setLoading(false);
   };
@@ -84,16 +96,22 @@ function CoursesPage() {
     if (creating) {
       const slug = draft.slug.trim() || slugify(draft.title);
       const { data, error } = await supabase.from("courses").insert({
-  title: draft.title,
-  slug,
-  short_description: draft.short_description,
-  description: draft.description,
-  curriculum: draft.curriculum,
-  features: draft.features,
-  category: draft.category,
-  sort_order: draft.sort_order,
-  image_url: draft.image_url || null,
-}).select().single();
+      title: draft.title,
+      slug,
+      short_description: draft.short_description,
+      description: draft.description,
+      curriculum: draft.curriculum,
+      features: draft.features,
+      category: draft.category,
+      sort_order: draft.sort_order,
+      image_url: draft.image_url || null,
+      fee: draft.fee,                    
+      fee_type: draft.fee_type,          
+      early_bird_fee: draft.early_bird_fee, 
+      early_bird_deadline: draft.early_bird_deadline || null, 
+      fee_label: draft.fee_label || null,
+      capacity: draft.capacity,     
+     }).select().single();
       setSaving(false);
       if (error) { alert("Create failed: " + error.message); return; }
       setRows((r) => [...r, data as Course].sort((a, b) => a.sort_order - b.sort_order));
@@ -106,7 +124,13 @@ function CoursesPage() {
   features: draft.features,
   category: draft.category,
   sort_order: draft.sort_order,
-  image_url: draft.image_url || null, // add this
+  image_url: draft.image_url || null,
+  fee: draft.fee,                    
+  fee_type: draft.fee_type,         
+  early_bird_fee: draft.early_bird_fee,
+  early_bird_deadline: draft.early_bird_deadline || null,
+  fee_label: draft.fee_label || null,
+  capacity: draft.capacity,
 }).eq("id", draft.id);
       setSaving(false);
       if (error) { alert("Save failed: " + error.message); return; }
@@ -219,6 +243,7 @@ function DraftEditor({
 }) {
   const curriculumRef = useRef<ListEditorRef>(null);
   const featuresRef = useRef<ListEditorRef>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const handleSave = () => {
     // Flush any pending unsaved items before saving
@@ -256,22 +281,36 @@ function DraftEditor({
           </div>
           <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-500 hover:bg-slate-50">
             <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                const ext = file.name.split('.').pop();
-                const path = `${Date.now()}.${ext}`;
-                const { error } = await supabase.storage.from('course-images').upload(path, file, { upsert: true });
-                if (error) { alert('Upload failed: ' + error.message); return; }
-                const { data } = supabase.storage.from('course-images').getPublicUrl(path);
-                setDraft({ ...draft, image_url: data.publicUrl });
-              }}
-            />
-            📁 Upload from device
-          </label>
+  type="file"
+  accept="image/*"
+  className="hidden"
+  disabled={uploadingImage}
+  onChange={async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("https://tbi-image-upload.imranolonamustopha.workers.dev", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        alert("Upload failed: " + (data.error || "Unknown error"));
+        return;
+      }
+      setDraft({ ...draft, image_url: data.url });
+    } catch (err) {
+      alert("Upload failed: " + String(err));
+    } finally {
+      setUploadingImage(false);
+      e.target.value = "";
+    }
+  }}
+/>
+{uploadingImage ? "⏳ Uploading…" : "📁 Upload from device"}          </label>
         </div>
       </Field>
       <Field label="Description">
@@ -296,10 +335,71 @@ function DraftEditor({
             <option value="kids">Kids</option>
           </select>
         </Field>
+        <Field label="Capacity (leave blank for unlimited)">
+           <input
+             type="number"
+             value={draft.capacity ?? ""}
+             onChange={(e) => setDraft({ ...draft, capacity: e.target.value ? Number(e.target.value) : null })}
+             placeholder="e.g. 10"
+             className="w-full rounded-md border border-input px-3 py-2 text-sm"
+           />
+        </Field>
         <Field label="Sort Order">
           <input type="number" value={draft.sort_order} onChange={(e) => setDraft({ ...draft, sort_order: Number(e.target.value) || 0 })} className="w-full rounded-md border border-input px-3 py-2 text-sm" />
         </Field>
       </div>
+      {/* Pricing Section */}
+<div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pricing</p>
+  <div className="grid grid-cols-2 gap-3">
+    <Field label="Fee (₦)">
+      <input
+        type="number"
+        value={draft.fee ?? ""}
+        onChange={(e) => setDraft({ ...draft, fee: e.target.value ? Number(e.target.value) : null })}
+        placeholder="e.g. 20000"
+        className="w-full rounded-md border border-input px-3 py-2 text-sm"
+      />
+    </Field>
+    <Field label="Fee Type">
+      <select
+        value={draft.fee_type}
+        onChange={(e) => setDraft({ ...draft, fee_type: e.target.value })}
+        className="w-full rounded-md border border-input px-3 py-2 text-sm bg-white"
+      >
+        <option value="monthly">Monthly</option>
+        <option value="one_time">One-time</option>
+      </select>
+    </Field>
+  </div>
+  <Field label="Fee Label (optional — e.g. 'per month', 'one-time payment')">
+    <input
+      value={draft.fee_label ?? ""}
+      onChange={(e) => setDraft({ ...draft, fee_label: e.target.value || null })}
+      placeholder="e.g. per month"
+      className="w-full rounded-md border border-input px-3 py-2 text-sm"
+    />
+  </Field>
+  <div className="grid grid-cols-2 gap-3">
+    <Field label="Early Bird Fee (₦)">
+      <input
+        type="number"
+        value={draft.early_bird_fee ?? ""}
+        onChange={(e) => setDraft({ ...draft, early_bird_fee: e.target.value ? Number(e.target.value) : null })}
+        placeholder="e.g. 15000"
+        className="w-full rounded-md border border-input px-3 py-2 text-sm"
+      />
+    </Field>
+    <Field label="Early Bird Deadline">
+      <input
+        type="date"
+        value={draft.early_bird_deadline ?? ""}
+        onChange={(e) => setDraft({ ...draft, early_bird_deadline: e.target.value || null })}
+        className="w-full rounded-md border border-input px-3 py-2 text-sm"
+      />
+    </Field>
+  </div>
+</div>
       <div className="flex gap-2 justify-end pt-2 border-t border-slate-100">
         <button onClick={onCancel} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-50">Cancel</button>
         <button onClick={handleSave} disabled={saving} className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground hover:bg-brand-dark disabled:opacity-60">

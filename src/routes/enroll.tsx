@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Check, ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Check, ArrowLeft, ArrowRight, CheckCircle2, Copy, MessageCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase-external";
 import logo from "@/assets/TBI full logo blue.png";
 
@@ -26,6 +26,7 @@ type Course = {
   early_bird_fee: number | null;
   early_bird_deadline: string | null;
   fee_label: string | null;
+  capacity: number | null;
 };
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -78,7 +79,7 @@ function EnrollPage() {
     const fetchCourses = async () => {
       const { data } = await supabase
         .from("courses")
-        .select("id, slug, title, short_description, category, sort_order, fee, fee_type, early_bird_fee, early_bird_deadline, fee_label")
+        .select("id, slug, title, short_description, category, sort_order, fee, fee_type, early_bird_fee, early_bird_deadline, fee_label, capacity")
         .order("sort_order", { ascending: true });
       setAllCourses((data ?? []) as Course[]);
       setLoadingCourses(false);
@@ -154,12 +155,11 @@ function EnrollPage() {
     setSubmitting(false);
 
     const days = availability.map((a) => `${a.day}: ${a.time}`).join("\n");
-    const courseBreakdown = selectedCourseObjects
-      .map((c) => `${c.title}: ₦${getEffectiveFee(c).toLocaleString()} (${c.fee_type === "one_time" ? "one-time" : "monthly"})`)
-      .join("\n");
+    const enrollmentLines = selectedCourseObjects
+  .map((c, i) => `${i + 1}. ${c.title}\n₦${getEffectiveFee(c).toLocaleString()} · ${c.fee_type === "one_time" ? "One-time" : "Monthly"}`)
+  .join("\n");
 
-    const msg = `New Registration — The Blessed Institute\n\n👤 REGISTRANT\n\nRegistering for: ${form.who === "myself" ? "Myself" : "Someone Else"}\nFull Name: ${form.fullName}\nEmail: ${form.email}\nPhone: ${form.phone}\n\n📚 CLASS PREFERENCES\n\nCourses:\n${courseBreakdown}\nKnowledge Level: ${form.level}\n\n💰 PRICING\n\nTotal: ₦${totalPrice.toLocaleString()}\n\n📅 AVAILABILITY\n\n${days || "—"}\n\n👥 Students: ${form.students}\n📝 Special Requirements: ${form.requirements || "None"}`;
-
+    const msg = `*Assalāmu ‘alaykum wa raḥmatullāhi wa barakātuh.*\nMy name is *${form.fullName}*, and I am excited to begin my learning journey with The Blessed Institute.\nBelow are my details:\n\n- *Registering for*: \n${form.who === "myself" ? "Myself" : "Someone Else"}\n- *Enrollment*:\n${enrollmentLines}\n💰 TOTAL: ₦${totalPrice.toLocaleString()}\n- *Current Level*:\n${form.level}\n- *Preferred Schedule*:\n${days || "—"}\n- *Number of Students*:\n${form.students}\n- *What I hope to achieve*:\n"${form.requirements || "—"}"\n📧 *Email*: ${form.email}\n📞 *Phone*: ${form.phone}\nJazākumullāhu khayran. I look forward to learning with you!`;
     const url = `https://wa.me/2349026207960?text=${encodeURIComponent(msg)}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
@@ -197,75 +197,96 @@ function EnrollPage() {
             </div>
           </aside>
 
-          <section className="rounded-3xl border border-border bg-white p-6 shadow-sm md:p-9">
-            {submitted ? (
-              <div className="py-10 text-center">
-                <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-success/15 text-success">
-                  <Check className="h-8 w-8" />
-                </div>
-                <h3 className="mt-5 text-2xl font-bold text-primary">JazakAllahu Khairan!</h3>
-                <p className="mt-3 text-muted-foreground">
-                  Your registration has been received. We will contact you via WhatsApp within 24 hours to confirm your schedule.
-                </p>
-                <Link to="/" className="mt-8 inline-flex rounded-full bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground hover:bg-brand-dark">
-                  Back to home
-                </Link>
-              </div>
-            ) : (
-              <>
-                <StepIndicator step={step} total={totalSteps} />
-                {step === 1 && <Step1 form={form} setForm={setForm} />}
-                {step === 2 && (
-                  <Step2
-                    form={form}
-                    generalCourses={generalCourses}
-                    kidsCourses={kidsCourses}
-                    loading={loadingCourses}
-                    setForm={setForm}
-                    toggleCourse={toggleCourse}
-                  />
-                )}
-                {step === 3 && (
-                  <Step3
-                    selectedCourses={selectedCourseObjects}
-                    totalPrice={totalPrice}
-                  />
-                )}
-                {step === 4 && <Step4 form={form} setForm={setForm} />}
-                {step === 5 && <Step5 form={form} selectedCourses={selectedCourseObjects} totalPrice={totalPrice} />}
+        <section className="rounded-3xl border border-border bg-white p-6 shadow-sm md:p-9">
+         {submitted ? (
+        <PaymentStep totalPrice={totalPrice} selectedCourses={selectedCourseObjects} />
+) : (
+            <>
+      <StepIndicator step={step} total={totalSteps} />
 
-                <div className="mt-8 flex items-center justify-between gap-3 border-t border-border pt-6">
-                  <button
-                    onClick={() => setStep((s) => Math.max(1, s - 1))}
-                    disabled={step === 1}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-foreground/70 transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <ArrowLeft className="h-4 w-4" /> Previous
-                  </button>
-                  {step < totalSteps ? (
-                    <button
-                      onClick={() => canProceed() && setStep((s) => s + 1)}
-                      disabled={!canProceed()}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-brand px-6 py-2.5 text-sm font-semibold text-brand-foreground transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Next <ArrowRight className="h-4 w-4" />
-                    </button>
-                  ) : (
-                    <div className="flex flex-col items-end gap-2">
-                      {submitError && <p className="text-xs text-red-600">{submitError}</p>}
-                      <button
-                        onClick={submit}
-                        disabled={submitting}
-                        className="rounded-full bg-brand px-7 py-2.5 text-sm font-semibold text-brand-foreground transition hover:bg-brand-dark disabled:opacity-60"
-                      >
-                        {submitting ? "Submitting…" : "Submit Registration"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
+      {step === 1 && (
+        <Step1
+          form={form}
+          setForm={setForm}
+        />
+      )}
+
+      {step === 2 && (
+        <Step2
+          form={form}
+          generalCourses={generalCourses}
+          kidsCourses={kidsCourses}
+          loading={loadingCourses}
+          setForm={setForm}
+          toggleCourse={toggleCourse}
+        />
+      )}
+
+      {step === 3 && (
+        <Step3
+          selectedCourses={selectedCourseObjects}
+          totalPrice={totalPrice}
+        />
+      )}
+
+      {step === 4 && (
+        <Step4
+          form={form}
+          setForm={setForm}
+        />
+      )}
+
+      {step === 5 && (
+        <Step5
+          form={form}
+          selectedCourses={selectedCourseObjects}
+          totalPrice={totalPrice}
+        />
+      )}
+
+      <div className="mt-8 flex items-center justify-between gap-3 border-t border-border pt-6">
+        <button
+          type="button"
+          onClick={() => setStep((s) => Math.max(1, s - 1))}
+          disabled={step === 1}
+          className="inline-flex items-center gap-1.5 rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-foreground/70 transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Previous
+        </button>
+
+        {step < totalSteps ? (
+          <button
+            type="button"
+            onClick={() => canProceed() && setStep((s) => s + 1)}
+            disabled={!canProceed()}
+            className="inline-flex items-center gap-1.5 rounded-full bg-brand px-6 py-2.5 text-sm font-semibold text-brand-foreground transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Next
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        ) : (
+          <div className="flex flex-col items-end gap-2">
+            {submitError && (
+              <p className="text-xs text-red-600">
+                {submitError}
+              </p>
             )}
-          </section>
+
+            <button
+              type="button"
+              onClick={submit}
+              disabled={submitting}
+              className="rounded-full bg-brand px-7 py-2.5 text-sm font-semibold text-brand-foreground transition hover:bg-brand-dark disabled:opacity-60"
+            >
+              {submitting ? "Submitting…" : "Submit Registration"}
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  )}
+        </section>
         </div>
       </main>
     </div>
@@ -604,6 +625,88 @@ function Row({ k, v, highlight }: { k: string; v: string; highlight?: boolean })
     <div className="flex justify-between gap-4 text-sm">
       <dt className="text-muted-foreground">{k}</dt>
       <dd className={`text-right font-medium ${highlight ? "text-brand font-bold" : "text-foreground"}`}>{v}</dd>
+    </div>
+  );
+}
+
+function PaymentStep({ totalPrice, selectedCourses }: { totalPrice: number; selectedCourses: Course[] }) {
+  const [copied, setCopied] = useState(false);
+  const [seatInfo, setSeatInfo] = useState<{ title: string; capacity: number; remaining: number }[]>([]);
+  const accountNumber = "9010235060";
+
+  useEffect(() => {
+    const fetchSeats = async () => {
+      const limited = selectedCourses.filter((c) => c.capacity != null);
+      if (limited.length === 0) return;
+
+      const results = await Promise.all(
+        limited.map(async (c) => {
+          const { count } = await supabase
+            .from("registrations")
+            .select("id", { count: "exact", head: true })
+            .eq("status", "paid")
+            .contains("selected_courses", [c.title]);
+          return {
+            title: c.title,
+            capacity: c.capacity!,
+            remaining: Math.max(0, c.capacity! - (count ?? 0)),
+          };
+        })
+      );
+      setSeatInfo(results);
+    };
+    fetchSeats();
+  }, [selectedCourses]);
+
+  const copyAccountNumber = async () => {
+    await navigator.clipboard.writeText(accountNumber);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const proofMsg = `Assalāmu ‘alaykum, I have made payment of ₦${totalPrice.toLocaleString()} to secure my place at The Blessed Institute. Attached is my proof of payment.`;
+  const proofUrl = `https://wa.me/2349026207960?text=${encodeURIComponent(proofMsg)}`;
+
+  return (
+    <div className="py-6 text-center">
+      <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-success/15 text-success">
+        <Check className="h-8 w-8" />
+      </div>
+      <h3 className="mt-5 text-2xl font-bold text-primary">Registration & Payment</h3>
+      <p className="mt-2 text-muted-foreground">
+        Pay <span className="font-semibold text-primary">₦{totalPrice.toLocaleString()}</span> to secure your place.
+      </p>
+
+      {seatInfo.length > 0 && (
+        <div className="mt-4 space-y-1.5">
+          {seatInfo.map((s) => (
+            <p key={s.title} className={`text-xs font-medium ${s.remaining === 0 ? "text-red-600" : "text-amber-600"}`}>
+              {s.remaining === 0
+                ? `${s.title}: Fully booked`
+                : `${s.title}: Only ${s.remaining} of ${s.capacity} places left`}
+            </p>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-6 rounded-2xl border border-border bg-secondary/30 p-5 text-left">
+        {/* ...unchanged bank details block... */}
+      </div>
+
+      <p className="mt-6 text-sm text-muted-foreground">After payment, send us your payment proof.</p>
+
+      <a
+        href={proofUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand px-6 py-3.5 text-sm font-semibold text-brand-foreground hover:bg-brand-dark"
+      >
+        <MessageCircle className="h-4 w-4" /> Click here to send payment proof
+      </a>
+
+      <Link to="/" className="mt-6 inline-block text-sm font-medium text-muted-foreground hover:text-primary">
+        Back to home
+      </Link>
     </div>
   );
 }

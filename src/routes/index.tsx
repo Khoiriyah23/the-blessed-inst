@@ -26,6 +26,11 @@ type Course = {
   category: "general" | "kids";
   sort_order: number;
   image_url: string | null;
+   fee: number | null;
+  fee_type: "monthly" | "one_time" | null;
+  early_bird_fee: number | null;
+  early_bird_deadline: string | null;
+  fee_label: string | null;
 };
 
 const coursesQuery = queryOptions({
@@ -33,7 +38,7 @@ const coursesQuery = queryOptions({
   queryFn: async (): Promise<Course[]> => {
     const { data, error } = await supabase
       .from("courses")
-      .select("*")
+      .select("*, fee, fee_type, early_bird_fee, early_bird_deadline, fee_label")
       .order("category", { ascending: false })
       .order("sort_order", { ascending: true });
     if (error) throw error;
@@ -306,10 +311,31 @@ function EnrollPrivate() {
   );
 }
 
-function CourseCard({ course, onOpen }: { course: Course; onOpen: () => void }) {
+function CourseCard({ course, onOpen, onImageClick }: { 
+  course: Course; 
+  onOpen: () => void;
+  onImageClick?: () => void;
+}) {
+  const today = new Date();
+  const hasEarlyBird = course.early_bird_fee && course.early_bird_deadline && 
+    new Date(course.early_bird_deadline) >= today;
+  const effectiveFee = hasEarlyBird ? course.early_bird_fee! : course.fee;
+
   return (
-    <div className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
-      <div className="relative h-44 w-full overflow-hidden">
+    <Link
+      to="/enroll"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl cursor-pointer"
+    >
+      {/* Clickable image for fullscreen view */}
+      <div 
+        className="relative h-44 w-full overflow-hidden"
+        onClick={(e) => {
+          if (course.image_url && onImageClick) {
+            e.preventDefault();
+            onImageClick();
+          }
+        }}
+      >
         {course.image_url ? (
           <img
             src={course.image_url}
@@ -326,24 +352,58 @@ function CourseCard({ course, onOpen }: { course: Course; onOpen: () => void }) 
             <BookOpen className="absolute bottom-4 left-4 h-10 w-10 text-white/90" strokeWidth={1.6} />
           </div>
         )}
+        {course.image_url && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition">
+            <span className="text-white text-xs font-semibold opacity-0 group-hover:opacity-100 transition bg-black/50 px-2 py-1 rounded-full">
+              Click to view
+            </span>
+          </div>
+        )}
       </div>
+
       <div className="flex flex-1 flex-col p-6">
-        <h3 className="text-lg font-bold text-primary">{course.title}</h3>
-        <p className="mt-2 flex-1 text-sm text-muted-foreground">{course.short_description}</p>
-        <button
-          onClick={onOpen}
-          className="mt-5 inline-flex w-fit items-center gap-1 rounded-full border border-brand/30 bg-brand/5 px-4 py-2 text-sm font-semibold text-brand transition hover:bg-brand hover:text-brand-foreground"
-        >
-          Learn More
-        </button>
+  <h3 className="text-lg font-bold text-primary">{course.title}</h3>
+  <p className="mt-2 flex-1 text-sm text-muted-foreground">{course.short_description}</p>
+
+  {/* Price display */}
+  {effectiveFee && (
+    <div className="mt-4">
+      {hasEarlyBird && (
+        <p className="text-xs line-through text-muted-foreground">
+          ₦{course.fee!.toLocaleString()}
+        </p>
+      )}
+      <div className="flex items-baseline gap-1">
+        <span className="text-xl font-extrabold text-primary">
+          ₦{effectiveFee.toLocaleString()}
+        </span>
+        <span className="text-xs text-muted-foreground font-medium">
+          /{course.fee_type === "one_time" ? "one-time" : "month"}
+        </span>
       </div>
+      {hasEarlyBird && (
+        <p className="text-[10px] text-amber-600 font-semibold mt-0.5">
+          🎉 Early bird — ends {new Date(course.early_bird_deadline!).toLocaleDateString()}
+        </p>
+      )}
     </div>
+  )}
+
+  <button
+    onClick={(e) => { e.preventDefault(); onOpen(); }}
+    className="mt-5 w-full rounded-xl border border-brand/30 bg-brand/5 px-4 py-2.5 text-sm font-semibold text-brand transition hover:bg-brand hover:text-brand-foreground"
+  >
+    Learn More
+  </button>
+</div>
+    </Link>
   );
 }
 
 function Courses() {
   const { data: courses } = useSuspenseQuery(coursesQuery);
   const [active, setActive] = useState<Course | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const general = courses.filter((c) => c.category === "general");
   const kids = courses.filter((c) => c.category === "kids");
 
@@ -353,7 +413,12 @@ function Courses() {
         <SectionHeading eyebrow="Our Programs" title="Courses we offer" subtitle="Explore our live, teacher-led programs for every level." />
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {general.map((c) => (
-            <CourseCard key={c.id} course={c} onOpen={() => setActive(c)} />
+            <CourseCard 
+              key={c.id} 
+              course={c} 
+              onOpen={() => setActive(c)}
+              onImageClick={() => c.image_url && setLightboxImage(c.image_url)}
+            />
           ))}
         </div>
 
@@ -368,13 +433,39 @@ function Courses() {
           </p>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {kids.map((c) => (
-              <CourseCard key={c.id} course={c} onOpen={() => setActive(c)} />
+              <CourseCard 
+                key={c.id} 
+                course={c} 
+                onOpen={() => setActive(c)}
+                onImageClick={() => c.image_url && setLightboxImage(c.image_url)}
+              />
             ))}
           </div>
         </div>
       </div>
 
       <CourseModal course={active} onClose={() => setActive(null)} />
+
+      {/* Image Lightbox */}
+      {lightboxImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button 
+            className="absolute top-4 right-4 text-white/80 hover:text-white text-3xl font-light"
+            onClick={() => setLightboxImage(null)}
+          >
+            ×
+          </button>
+          <img
+            src={lightboxImage}
+            alt="Course flyer"
+            className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </section>
   );
 }
@@ -580,7 +671,7 @@ function FAQ() {
     { q: "What courses do you offer?", a: "We offer Qur'an recitation and memorization, Tajweed, Arabic (beginner to advanced), Fiqh, Islamic Studies, and a dedicated Kids program. Visit the Courses section above for the full list." },
     { q: "Is the school 100% online?", a: "Yes — all classes are delivered live online so you can learn from anywhere in the world, on a schedule that suits you." },
     { q: "What is the mode of instruction?", a: "Live one-on-one or small-group classes over video call with qualified male and female teachers. Lessons are interactive and include recitation, discussion and homework." },
-    { q: "Are the courses accredited?", a: "Our advanced Idaadi and Thanawiy programs follow a structured classical curriculum with internal certification. Tajweed students can also pursue an Ijazah pathway." },
+    // { q: "Are the courses accredited?", a: "Our advanced Idaadi and Thanawiy programs follow a structured classical curriculum with internal certification. Tajweed students can also pursue an Ijazah pathway." },
   ];
   return (
     <section id="faq" className="bg-secondary/40 py-20 md:py-24">
